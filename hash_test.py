@@ -10,7 +10,7 @@ def calculate_hash(filename):
   hex_dig=hash_object.hexdigest()
   return hex_dig
 
-
-filename=input('Enter the filename to hash: ')
-result=calculate_hash(filename)
-print(f"SHA-256 hash of {filename}: {result}")
+if __name__ == "__main__":
+  filename=input('Enter the filename to hash: ')
+  result=calculate_hash(filename)
+  print(f"SHA-256 hash of {filename}: {result}")
