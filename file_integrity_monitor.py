@@ -3,86 +3,121 @@ from pathlib import Path
 from hash_test import calculate_hash
 
 
+BASELINE_FILE = "baseline.json"
+
+
 def save_baseline(file_hashes):
-    with open("baseline.json","w") as file:
+    """Save file hashes to the baseline JSON file."""
+    with open(BASELINE_FILE, "w") as file:
         json.dump(file_hashes, file, indent=4)
 
-mode=input("Enter mode (create/monitor):").lower()
-if mode not in ['create','monitor']:
-    print("Invalid mode. Please enter 'create' or 'monitor'.")
-    exit()
-directory = input("Enter the directory to monitor: ")
 
-file_hashes = {}
+def load_baseline():
+    """Load the stored baseline."""
+    try:
+        with open(BASELINE_FILE, "r") as file:
+            return json.load(file)
+    except FileNotFoundError:
+        print("Baseline file not found. Please create a baseline first.")
+        return None
 
-path = Path(directory)
-unchanged_count=0
-modified_count=0
-new_count=0
-deleted_count=0
-if path.exists():
-    print(f"The directory {directory} exists.")
 
-    if path.is_dir():
-        print("It is a directory.")
+def scan_directory(path):
+    """Scan a directory and return filename-to-hash mappings."""
+    file_hashes = {}
 
-        for item in path.iterdir():
+    for item in path.iterdir():
+        if item.is_file():
+            file_hashes[item.name] = calculate_hash(item)
 
-            if item.is_file():
-               
+    return file_hashes
 
-                file_hash = calculate_hash(item)
-                file_hashes[item.name] = file_hash
-        if mode=='create':
-            save_baseline(file_hashes)
-            print("Baseline created successfully.")
-        elif mode=='monitor':
-            try:
-                with open("baseline.json", "r") as file:
-                        baseline = json.load(file)
-            except FileNotFoundError:
-                print("Baseline file not found. Please create a baseline first.")
-                exit()
-            
-            for item in file_hashes:
 
-                if item in baseline:
-                
-                    if file_hashes[item] == baseline[item]:
-                        print(f"File {item} is unchanged.")
-                        unchanged_count+=1
+def compare_files(current_files, baseline):
+    """Compare current files with the stored baseline."""
+    results = {
+        "unchanged": 0,
+        "modified": 0,
+        "new": 0,
+        "deleted": 0
+    }
 
-                    else:
-                        
-                        print(f"File {item} has been modified.")
-                        modified_count+=1
-                       
-                else:   
-                    print(f"File {item} is new.")
-                    new_count+=1
+    for filename, current_hash in current_files.items():
 
-            
-            for item in baseline:
-                if item not in file_hashes:
-                    print(f"File {item} has been deleted.")
-                    deleted_count+=1
-            print(f"Deleted files: {deleted_count}")
-            
+        if filename not in baseline:
+            print(f"File {filename} is new.")
+            results["new"] += 1
+
+        elif current_hash == baseline[filename]:
+            print(f"File {filename} is unchanged.")
+            results["unchanged"] += 1
+
+        else:
+            print(f"File {filename} has been modified.")
+            results["modified"] += 1
+
+    for filename in baseline:
+        if filename not in current_files:
+            print(f"File {filename} has been deleted.")
+            results["deleted"] += 1
+
+    return results
+
+
+def print_summary(results):
+    """Print the integrity monitoring summary."""
+    print("\n========== Security Summary ==========")
+    print(f"Unchanged files: {results['unchanged']}")
+    print(f"Modified files:  {results['modified']}")
+    print(f"New files:       {results['new']}")
+    print(f"Deleted files:   {results['deleted']}")
+
+    if (
+        results["modified"] == 0
+        and results["new"] == 0
+        and results["deleted"] == 0
+    ):
+        print("Status: No integrity changes detected.")
     else:
-      print("Error: The specified path is not a directory.")
-      exit()
+        print("Status: Integrity changes detected.")
 
-else:
-    print(f"The directory {directory} does not exist.")
-    exit()
 
-print("\n========== Security Summary ==========")
-print(f"Unchanged files: {unchanged_count}")
-print(f"Modified files:  {modified_count}")
-print(f"New files:       {new_count}")
-print(f"Deleted files:   {deleted_count}")
+def main():
+    mode = input("Enter mode (create/monitor): ").lower()
 
-if modified_count == 0 and new_count == 0 and deleted_count == 0:
-    print("Status: No integrity changes detected.")
-else:
-    print("Status: Integrity changes detected.")
+    if mode not in ["create", "monitor"]:
+        print("Invalid mode. Please enter 'create' or 'monitor'.")
+        return
+
+    directory = input("Enter the directory to monitor: ")
+    path = Path(directory)
+
+    if not path.exists():
+        print(f"The directory {directory} does not exist.")
+        return
+
+    if not path.is_dir():
+        print("Error: The specified path is not a directory.")
+        return
+
+    print(f"The directory {directory} exists.")
+    print("It is a directory.")
+
+    file_hashes = scan_directory(path)
+
+    if mode == "create":
+        save_baseline(file_hashes)
+        print("Baseline created successfully.")
+        return
+
+    baseline = load_baseline()
+
+    if baseline is None:
+        return
+
+    results = compare_files(file_hashes, baseline)
+    print_summary(results)
+
+
+if __name__ == "__main__":
+    main()
