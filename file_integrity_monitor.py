@@ -41,7 +41,7 @@ if path.exists():
                 with open("baseline.json", "r") as file:
                         baseline = json.load(file)
             except FileNotFoundError:
-                print("Baseline file not found.Please create a baseline first.")
+                print("Baseline file not found. Please create a baseline first.")
                 exit()
             
             for item in file_hashes:
@@ -70,9 +70,11 @@ if path.exists():
             
     else:
       print("Error: The specified path is not a directory.")
+      exit()
 
 else:
     print(f"The directory {directory} does not exist.")
+    exit()
 
 print("\n========== Security Summary ==========")
 print(f"Unchanged files: {unchanged_count}")
